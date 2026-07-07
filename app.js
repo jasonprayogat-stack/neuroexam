@@ -2,8 +2,7 @@
 //  NeuroExam Pocket Guide — app logic
 // ============================================================
 import { TESTS, CATEGORIES } from "./data.js";
-// viewer.js (and Three.js) are loaded lazily on first 3D open, so the
-// card guide keeps working even offline / if the CDN is unreachable.
+// viewer.js (and Three.js) are loaded lazily on first 3D open.
 
 const grid = document.getElementById("grid");
 const tabs = document.getElementById("tabs");
@@ -14,7 +13,7 @@ let query = "";
 
 // ---- category tabs ----------------------------------------
 function buildTabs() {
-  const all = { all: { label: "All", color: "#4b6fa5", icon: "☰" }, ...CATEGORIES };
+  const all = { all: { label: "All tests", color: "#4f46e5", icon: "◆" }, ...CATEGORIES };
   tabs.innerHTML = "";
   for (const [key, c] of Object.entries(all)) {
     const b = document.createElement("button");
@@ -48,32 +47,11 @@ function render() {
     card.className = "card";
     card.style.setProperty("--accent", cat.color);
     card.innerHTML = `
-      <div class="card-inner">
-        <div class="face front">
-          <span class="badge">${cat.icon} ${cat.label}</span>
-          <h2>${t.name}</h2>
-          ${t.root ? `<span class="root">${t.root}</span>` : ""}
-          <span class="flip-hint">tap to flip ↻</span>
-        </div>
-        <div class="face back">
-          <h3>${t.name}</h3>
-          <p><b>How</b> ${t.how}</p>
-          <p><b>Positive</b> ${t.positive}</p>
-          <p><b>Indicates</b> ${t.indicates}</p>
-          <p><b>Associated</b> ${t.conditions}</p>
-          <button class="view3d">▶ View in 3D</button>
-        </div>
-      </div>`;
-
-    // flip on tap (but not when pressing the 3D button)
-    card.querySelector(".card-inner").onclick = (e) => {
-      if (e.target.closest(".view3d")) return;
-      card.classList.toggle("flipped");
-    };
-    card.querySelector(".view3d").onclick = (e) => {
-      e.stopPropagation();
-      openViewer(t);
-    };
+      <span class="badge">${cat.icon} ${cat.label}</span>
+      <h3>${t.name}</h3>
+      ${t.root ? `<span class="root">${t.root}</span>` : ""}
+      <span class="play"><span class="ico">▶</span> View animation</span>`;
+    card.onclick = () => openViewer(t);
     grid.appendChild(card);
   }
 }
@@ -83,12 +61,35 @@ let viewer = null;
 const modal = document.getElementById("modal");
 const stage = document.getElementById("stage");
 const modalTitle = document.getElementById("modal-title");
-const modalDesc = document.getElementById("modal-desc");
+const modalBadge = document.getElementById("modal-badge");
+const explainToggle = document.getElementById("explain-toggle");
+const explain = document.getElementById("explain");
+
+const exFields = {
+  how: document.getElementById("ex-how"),
+  positive: document.getElementById("ex-positive"),
+  indicates: document.getElementById("ex-indicates"),
+  conditions: document.getElementById("ex-conditions"),
+};
+
+function collapseExplain() {
+  explain.classList.remove("open");
+  explainToggle.classList.remove("open");
+  explainToggle.querySelector(".chev").nextSibling.textContent = " Show explanation";
+}
 
 async function openViewer(t) {
+  const cat = CATEGORIES[t.category];
   modalTitle.textContent = t.name;
-  modalDesc.innerHTML =
-    `<b>How:</b> ${t.how}<br><b>Positive:</b> ${t.positive}`;
+  modalBadge.textContent = cat.label;
+
+  // fill explanation (kept collapsed until the user asks for it)
+  exFields.how.textContent = t.how;
+  exFields.positive.textContent = t.positive;
+  exFields.indicates.textContent = t.indicates;
+  exFields.conditions.textContent = t.conditions;
+  collapseExplain();
+
   modal.classList.add("open");
   try {
     if (!viewer) {
@@ -98,14 +99,26 @@ async function openViewer(t) {
     requestAnimationFrame(() => { viewer.resize(); viewer.show(t); });
   } catch (err) {
     stage.innerHTML =
-      `<p style="padding:24px;color:#9aa7bd;text-align:center">
-         3D view needs an internet connection the first time (to load the
+      `<p style="padding:24px;color:#6f6e8c;text-align:center">
+         The 3D view needs an internet connection the first time (to load the
          graphics library). Connect once and reopen — it works offline after that.
        </p>`;
   }
 }
-document.getElementById("modal-close").onclick = () => modal.classList.remove("open");
-modal.onclick = (e) => { if (e.target === modal) modal.classList.remove("open"); };
+
+// explanation toggle
+explainToggle.onclick = () => {
+  const nowOpen = !explain.classList.contains("open");
+  explain.classList.toggle("open", nowOpen);
+  explainToggle.classList.toggle("open", nowOpen);
+  explainToggle.querySelector(".chev").nextSibling.textContent =
+    nowOpen ? " Hide explanation" : " Show explanation";
+};
+
+function closeModal() { modal.classList.remove("open"); }
+document.getElementById("modal-close").onclick = closeModal;
+modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
 // ---- search -----------------------------------------------
 search.oninput = (e) => { query = e.target.value; render(); };

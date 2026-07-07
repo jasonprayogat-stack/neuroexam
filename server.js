@@ -7,7 +7,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const port = Number(process.argv[2]) || 8080;
+const port = Number(process.argv[2]) || Number(process.env.PORT) || 8080;
 const root = __dirname;
 
 const MIME = {
